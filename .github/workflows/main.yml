@@ -1,0 +1,159 @@
+name: AI-Powered PR Review and Auto-Merge (Gemini)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - develop
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for PR comparison
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install Dependencies
+        run: npm install @google/generative-ai
+
+      - name: Get PR diff and commits
+        id: get-pr-diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+
+          # Get PR diff
+          gh pr diff $PR_NUMBER > pr_diff.txt
+          
+          # Get commit messages
+          gh pr view $PR_NUMBER --json commits --jq '.commits[].messageHeadline' > commit_messages.txt
+          
+          # Count files changed
+          FILES_CHANGED=$(gh pr view $PR_NUMBER --json files --jq '.files | length')
+          echo "FILES_CHANGED=$FILES_CHANGED" >> $GITHUB_ENV
+          
+          # Set PR info for later steps
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+
+      - name: AI Code Review (Gemini)
+        id: ai-review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          FILES_CHANGED: ${{ env.FILES_CHANGED }}
+        run: |
+          node << 'ENDOFSCRIPT'
+          const fs = require('fs');
+          const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+          async function runAIReview() {
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            // Read PR details
+            const diff = fs.readFileSync('pr_diff.txt', 'utf8');
+            const commitMessages = fs.readFileSync('commit_messages.txt', 'utf8');
+            const filesChanged = parseInt(process.env.FILES_CHANGED);
+
+            // Prepare prompt with package check and review
+            const prompt = `
+            You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
+
+            Here are the PR details:
+            - Number of files changed: ${filesChanged}
+            - Commit messages: ${commitMessages}
+
+            Here is the diff of the code:
+            ${diff}
+
+            **Please focus your review on the following areas:**
+
+            1. **Critical Issues**: Highlight any critical issues that would cause the code to break or function incorrectly. These issues must be addressed before the PR can be merged.
+            
+            2. **Urgent Issues**: Identify issues that, while not breaking the code, may lead to potential bugs, performance issues, or security vulnerabilities that need urgent attention.
+
+            3. **Suggestions for Improvement**: Provide feedback on areas that don't necessarily need fixing but could be improved. These are recommendations to improve code quality, readability, or efficiency, and should be considered in future iterations.
+
+            4. **Code Quality**: Comment on the use of best practices, reuse of code, and any instances of unused variables, imports, or other inefficiencies.
+
+            5. **Security**: Look for any security vulnerabilities, such as improper handling of sensitive data or insecure coding practices.
+
+            6. **Enhancements**: If any part of the code can be enhanced for better maintainability or performance, mention it, even if it's not critical.
+
+            7. **Non-Essential Issues**: Do not focus on documentation, testing, or UI-related matters, such as navigation and icon placements, as they will be handled by the developer.
+
+            8. **Error Handling**: Do not review error handling as this is not within the scope of your task.
+
+            9. **Package and Library Checks**:
+               - Check whether any new package or library has been added in this PR.
+               - For each new package or library, ask:
+                 - Is this package necessary for the functionality of the code?
+                 - If yes, is the package deprecated or outdated? If it is, mention that it should be replaced or updated.
+                 - If it is not necessary, suggest that it be removed to reduce unnecessary dependencies.
+
+            **Finally, make a clear decision:**
+            - If the code is ready to be merged and has no critical or urgent issues, respond with **"VERDICT: MERGE"**.
+            - If there are critical or urgent issues that must be fixed, respond with **"VERDICT: NEEDS_CHANGES"** and specify what changes are needed.
+
+            **Format your response as follows:**
+            - **Summary**: Provide a 2-line summary of the PR review.
+            - **Critical Issues**: List the critical issues that need immediate attention (1 line max per issue).
+            - **Urgent Issues**: List any urgent issues (1 line max per issue).
+            - **Suggestions for Improvement**: Provide helpful suggestions for improvement (1 line max per suggestion).
+            - **Package Check**: List any unnecessary or deprecated packages (1 line per package).
+            - **VERDICT**: Clearly state the verdict as "MERGE" or "NEEDS_CHANGES" along with an explanation.
+            `;
+
+            // Call Gemini API
+            const result = await model.generateContent(prompt);
+            const reviewText = result.response.text();
+
+            // Extract verdict
+            const verdict = reviewText.includes("VERDICT: MERGE") ? "MERGE" : "NEEDS_CHANGES";
+
+            // Write results to files
+            fs.writeFileSync('review_result.txt', reviewText);
+            fs.writeFileSync('verdict.txt', verdict);
+
+            console.log("AI Review completed. Verdict: " + verdict);
+          }
+
+          runAIReview().catch(error => {
+            console.error('Error during AI review:', error);
+            process.exit(1);
+          });
+          ENDOFSCRIPT
+
+      - name: Post Review Comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+        run: |
+          REVIEW_TEXT=$(cat review_result.txt)
+          VERDICT=$(cat verdict.txt)
+
+          # Post review as a comment
+          gh pr comment $PR_NUMBER --body "$REVIEW_TEXT"
+
+          # Store verdict for next step
+          echo "VERDICT=$VERDICT" >> $GITHUB_ENV
+
+      - name: Auto-Merge PR
+        if: env.VERDICT == 'MERGE'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+        run: |
+          gh pr merge $PR_NUMBER --auto --merge
+          echo "Pull request automatically merged based on AI review. Feature branch has been preserved."
