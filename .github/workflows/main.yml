@@ -53,8 +53,7 @@ jobs:
           PR_NUMBER: ${{ env.PR_NUMBER }}
           FILES_CHANGED: ${{ env.FILES_CHANGED }}
         run: |
-          node -e "
-          const fs = require('fs');
+          node -e "const fs = require('fs');
           const { GoogleGenerativeAI } = require('@google/generative-ai');
 
           async function runAIReview() {
