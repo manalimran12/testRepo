@@ -67,8 +67,7 @@ jobs:
             const filesChanged = parseInt(process.env.FILES_CHANGED);
 
             // Prepare the prompt for review
-            const prompt = \`
-            You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
+            const prompt = \`You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
 
             Here are the PR details:
             - Number of files changed: \${filesChanged}
