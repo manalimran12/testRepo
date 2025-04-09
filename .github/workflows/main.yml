@@ -67,7 +67,7 @@ jobs:
             const filesChanged = parseInt(process.env.FILES_CHANGED);
 
             // Prepare prompt with package check and review
-            const prompt = 
+            const prompt = `
             You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
 
             Here are the PR details:
@@ -113,7 +113,7 @@ jobs:
             - **Suggestions for Improvement**: Provide helpful suggestions for improvement (1 line max per suggestion).
             - **Package Check**: List any unnecessary or deprecated packages (1 line per package).
             - **VERDICT**: Clearly state the verdict as "MERGE" or "NEEDS_CHANGES" along with an explanation.
-            ;
+            `;
 
             // Call Gemini API
             const result = await model.generateContent(prompt);
