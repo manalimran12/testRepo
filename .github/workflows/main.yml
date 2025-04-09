@@ -53,7 +53,8 @@ jobs:
           PR_NUMBER: ${{ env.PR_NUMBER }}
           FILES_CHANGED: ${{ env.FILES_CHANGED }}
         run: |
-          node -e "const fs = require('fs');
+          node -e "
+          const fs = require('fs');
           const { GoogleGenerativeAI } = require('@google/generative-ai');
 
           async function runAIReview() {
@@ -66,7 +67,8 @@ jobs:
             const filesChanged = parseInt(process.env.FILES_CHANGED);
 
             // Prepare the prompt for review
-            const prompt = \`You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
+            const prompt = \`
+            You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
 
             Here are the PR details:
             - Number of files changed: \${filesChanged}
@@ -101,8 +103,8 @@ jobs:
                  - If it is not necessary, suggest that it be removed to reduce unnecessary dependencies.
 
             **Finally, make a clear decision:**
-            - If the code is ready to be merged and has no critical or urgent issues, respond with **\"VERDICT: MERGE\"**.
-            - If there are critical or urgent issues that must be fixed, respond with **\"VERDICT: NEEDS_CHANGES\"** and specify what changes are needed.
+            - If the code is ready to be merged and has no critical or urgent issues, respond with **"VERDICT: MERGE"**.
+            - If there are critical or urgent issues that must be fixed, respond with **"VERDICT: NEEDS_CHANGES"** and specify what changes are needed.
 
             **Format your response as follows:**
             - **Summary**: Provide a 2-line summary of the PR review.
@@ -110,7 +112,7 @@ jobs:
             - **Urgent Issues**: List any urgent issues (e.g., performance, missing validation, error handling).
             - **Suggestions for Improvement**: Provide helpful suggestions (e.g., use sessionStorage, improve commit messages).
             - **Package Check**: List any unnecessary or deprecated packages.
-            - **VERDICT**: Clearly state the verdict as \"MERGE\" or \"NEEDS_CHANGES\" along with an explanation.
+            - **VERDICT**: Clearly state the verdict as "MERGE" or "NEEDS_CHANGES" along with an explanation.
             \`;
 
             // Call Gemini API
