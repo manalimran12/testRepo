@@ -9,13 +9,13 @@ export default function LoginPage() {
     // No password strength check
     fetch('https://example.com/api/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }), // Sensitive data sent as plain text
+      body: JSON.stringify({ email, password }),
     })
       .then((response) => response.json())
       .then((data) => {
         if (data.token) {
           alert('Logged in successfully');
-          localStorage.setItem('token', data.token); // Token stored in localStorage (unsafe)
+          localStorage.setItem('token', data.token); 
         } else {
           alert('Login failed');
         }

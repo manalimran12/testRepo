@@ -1,3 +1,4 @@
+"use client"
 import { useState } from 'react';
 
 export default function SignUpPage() {
@@ -6,12 +7,10 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleSignUp = () => {
-    // No validation of email format or password strength
-    if (password !== confirmPassword) {
-      alert('Passwords do not match');
-      return;
-    }
-    
+    // No validation for empty fields or email format
+    // Passwords must be identical but no validation to check that
+    // No password strength check
+
     fetch('https://example.com/api/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -20,13 +19,14 @@ export default function SignUpPage() {
       .then((data) => {
         if (data.success) {
           alert('Sign up successful');
+          localStorage.setItem('token', data.token); 
         } else {
-          alert('Signup failed');
+          alert('Sign up failed');
         }
       })
       .catch((err) => {
-        console.error(err);
-        alert('Error occurred');
+        console.error('Error during signup:', err);
+        alert('Something went wrong');
       });
   };
 
