@@ -6,7 +6,7 @@ on:
       - '**'  # Runs on every push to any branch
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   repository-checks:
@@ -119,18 +119,28 @@ jobs:
             // Gather dependencies and devDependencies from package.json
             const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
 
-            // Check for redundancy in packages (e.g., zustand and redux)
+            // Redundant package pairs (examples based on common functionality overlap)
             const redundantPackages = [
-              ['zustand', 'redux'],  // Example of redundant packages
+              ['zustand', 'redux'],  // Example of redundant state management libraries
               ['axios', 'node-fetch'], // Example of redundant HTTP clients
               ['lodash', 'underscore'], // Example of redundant utility libraries
+              ['moment', 'date-fns'],  // Example of redundant date libraries
+              ['chart.js', 'd3'],      // Example of redundant charting libraries
+              ['uuid', 'nanoid'],      // Example of redundant UUID libraries
             ];
+
+            // Check if redundant packages are used
+            let detectedRedundancies = redundantPackages.filter(pair => 
+              dependencies[pair[0]] && dependencies[pair[1]]
+            );
 
             let prompt = `You are an AI system that checks for redundant packages in a GitHub repository.
 
             Please verify if the following redundant packages are being used in the repository:
             
-            ${redundantPackages.map(pair => `- ${pair[0]} and ${pair[1]}`).join('\n')}
+            ${detectedRedundancies.length > 0 
+              ? detectedRedundancies.map(pair => `- ${pair[0]} and ${pair[1]}`).join('\n') 
+              : 'No redundant packages detected.'}
 
             Here are the current dependencies in the repository:
             ${JSON.stringify(dependencies, null, 2)}
