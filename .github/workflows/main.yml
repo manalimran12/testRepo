@@ -53,35 +53,35 @@ jobs:
           PR_NUMBER: ${{ env.PR_NUMBER }}
           FILES_CHANGED: ${{ env.FILES_CHANGED }}
         run: |
-          node << 'ENDOFSCRIPT'
+          node -e "
           const fs = require('fs');
-          const { GoogleGenerativeAI } = require("@google/generative-ai");
+          const { GoogleGenerativeAI } = require('@google/generative-ai');
 
           async function runAIReview() {
             const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
             // Read PR details
             const diff = fs.readFileSync('pr_diff.txt', 'utf8');
             const commitMessages = fs.readFileSync('commit_messages.txt', 'utf8');
             const filesChanged = parseInt(process.env.FILES_CHANGED);
 
-            // Prepare prompt with package check and review
-            const prompt = `
+            // Prepare the prompt for review
+            const prompt = \`
             You are a highly skilled code reviewer for a GitHub pull request. Your task is to provide a structured and actionable review based on the provided code diff and commit messages.
 
             Here are the PR details:
-            - Number of files changed: ${filesChanged}
-            - Commit messages: ${commitMessages}
+            - Number of files changed: \${filesChanged}
+            - Commit messages: \${commitMessages}
 
             Here is the diff of the code:
-            ${diff}
+            \${diff}
 
             **Please focus your review on the following areas:**
 
             1. **Critical Issues**:
-               - Look for any **security vulnerabilities** such as the **improper storage of sensitive data** (e.g., storing tokens in `localStorage`).
-               - Check if the **token** or other sensitive data is being sent **in plain text** (e.g., via `fetch`).
+               - Look for any **security vulnerabilities** such as the **improper storage of sensitive data** (e.g., storing tokens in \`localStorage\`).
+               - Check if the **token** or other sensitive data is being sent **in plain text** (e.g., via \`fetch\`).
                - Ensure there is **form validation** for **empty fields** (e.g., missing email or password validation).
                - Check for any **cross-site scripting (XSS)** vulnerabilities due to improper handling of user inputs.
 
@@ -91,8 +91,8 @@ jobs:
                - Verify if the code is **handling errors properly** when the API fails or when there’s invalid user input.
 
             3. **Suggestions for Improvement**:
-               - Suggest improvements such as using more **descriptive variable names** (e.g., `token` could be `authToken` for clarity).
-               - Recommend **better token storage** mechanisms like **`sessionStorage`** or **secure storage** libraries (e.g., `cookie.js` for secure cookies).
+               - Suggest improvements such as using more **descriptive variable names** (e.g., \`token\` could be \`authToken\` for clarity).
+               - Recommend **better token storage** mechanisms like **\`sessionStorage\`** or **secure storage** libraries (e.g., \`cookie.js\` for secure cookies).
                - **Improve the commit messages** to be more descriptive, indicating what was actually changed or fixed in the code.
 
             4. **Package and Library Checks**:
@@ -108,33 +108,33 @@ jobs:
 
             **Format your response as follows:**
             - **Summary**: Provide a 2-line summary of the PR review.
-            - **Critical Issues**: List the critical issues (e.g., sensitive data storage in `localStorage`, missing validation, etc.).
+            - **Critical Issues**: List the critical issues (e.g., sensitive data storage in \`localStorage\`, missing validation, etc.).
             - **Urgent Issues**: List any urgent issues (e.g., performance, missing validation, error handling).
             - **Suggestions for Improvement**: Provide helpful suggestions (e.g., use sessionStorage, improve commit messages).
             - **Package Check**: List any unnecessary or deprecated packages.
             - **VERDICT**: Clearly state the verdict as "MERGE" or "NEEDS_CHANGES" along with an explanation.
-            `;
+            \`;
 
             // Call Gemini API
             const result = await model.generateContent(prompt);
             const reviewText = result.response.text();
 
             // Extract verdict
-            const verdict = reviewText.includes("VERDICT: MERGE") ? "MERGE" : "NEEDS_CHANGES";
+            const verdict = reviewText.includes('VERDICT: MERGE') ? 'MERGE' : 'NEEDS_CHANGES';
 
             // Write results to files
             fs.writeFileSync('review_result.txt', reviewText);
             fs.writeFileSync('verdict.txt', verdict);
 
-            console.log("AI Review completed. Verdict: " + verdict);
+            console.log('AI Review completed. Verdict: ' + verdict);
           }
 
           runAIReview().catch(error => {
             console.error('Error during AI review:', error);
             process.exit(1);
           });
-          ENDOFSCRIPT
-
+          "
+          
       - name: Post Review Comments
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
