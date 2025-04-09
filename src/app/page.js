@@ -16,7 +16,7 @@ export default function LoginPage() {
       .then((data) => {
         if (data.token) {
           alert('Logged in successfully');
-          localStorage.setItem('token', data.token); // Token stored in localStorage (unsafe)
+          localStorage.setItem('token', data.token); 
         } else {
           alert('Login failed');
         }
