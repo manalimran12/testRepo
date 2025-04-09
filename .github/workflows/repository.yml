@@ -6,7 +6,7 @@ on:
       - '**'  # Runs on every push to any branch
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   repository-checks:
@@ -119,33 +119,14 @@ jobs:
             // Gather dependencies and devDependencies from package.json
             const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
 
-            // Redundant package pairs (examples based on common functionality overlap)
-            const redundantPackages = [
-              ['zustand', 'redux'],  // Example of redundant state management libraries
-              ['axios', 'node-fetch'], // Example of redundant HTTP clients
-              ['lodash', 'underscore'], // Example of redundant utility libraries
-              ['moment', 'date-fns'],  // Example of redundant date libraries
-              ['chart.js', 'd3'],      // Example of redundant charting libraries
-              ['uuid', 'nanoid'],      // Example of redundant UUID libraries
-            ];
+            let prompt = `You are an AI system that checks for redundant or similar packages in a GitHub repository.
 
-            // Check if redundant packages are used
-            let detectedRedundancies = redundantPackages.filter(pair => 
-              dependencies[pair[0]] && dependencies[pair[1]]
-            );
-
-            let prompt = `You are an AI system that checks for redundant packages in a GitHub repository.
-
-            Please verify if the following redundant packages are being used in the repository:
-            
-            ${detectedRedundancies.length > 0 
-              ? detectedRedundancies.map(pair => `- ${pair[0]} and ${pair[1]}`).join('\n') 
-              : 'No redundant packages detected.'}
+            Please analyze the following dependencies and identify any packages that serve the same or similar purpose. For example, if multiple state management libraries are being used (like 'redux' and 'zustand'), or if there are overlapping libraries for HTTP requests (like 'axios' and 'node-fetch') or utility functions (like 'lodash' and 'underscore').
 
             Here are the current dependencies in the repository:
             ${JSON.stringify(dependencies, null, 2)}
 
-            If any of the redundant packages are present, respond with why they should not both be used and suggest which one should be removed.`;
+            If you detect any redundant packages or libraries serving the same purpose, please provide an explanation and suggest which one should be removed. Otherwise, respond with 'No redundant packages detected.'`;
 
             // Call Gemini API
             const result = await model.generateContent(prompt);
