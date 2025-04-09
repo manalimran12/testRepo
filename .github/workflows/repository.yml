@@ -11,6 +11,10 @@ on:
 jobs:
   repository-checks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for accessing the repository content
+      pull-requests: write  # Required for posting comments on PRs
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
