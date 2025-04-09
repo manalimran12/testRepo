@@ -1,0 +1,168 @@
+name: Repository Checks
+
+on:
+  push:
+    branches:
+      - '**'  # Runs on every push to any branch
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  repository-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for Node.js LTS version
+        run: |
+          node_version=$(node -v)
+          if [[ ! $node_version =~ ^v(16|18|20)\. ]]; then
+            echo "Node.js version is not LTS. Current version: $node_version"
+            exit 1
+          fi
+          echo "Node.js version is valid: $node_version"
+
+      - name: Check for force push to the main branch
+        run: |
+          git reflog show --date=iso --pretty=format:"%h %cd" | grep 'force' && echo "Force push detected!" && exit 1
+          echo "No force push detected."
+
+      - name: Architecture Check (Gemini Bot)
+        id: architecture-check
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node << 'ENDOFSCRIPT'
+          const fs = require('fs');
+          const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+          async function runArchitectureCheck() {
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            // Read the repository files and structure
+            const files = fs.readdirSync('.');
+
+            // Define required directories and files for architecture validation
+            const requiredDirectories = ['src', 'config', 'public', 'scripts', 'tests'];
+            const requiredFiles = ['package.json', '.gitignore', 'README.md'];
+
+            // Check directories
+            let missingDirs = requiredDirectories.filter(dir => !fs.existsSync(dir));
+            let missingFiles = requiredFiles.filter(file => !fs.existsSync(file));
+
+            let prompt = `You are an AI system that checks the architecture of a GitHub repository.
+            
+            Please verify if the required directories and files are present in the repository. The expected directories are:
+            - src
+            - config
+            - public
+            - scripts
+            - tests
+            
+            The expected files are:
+            - package.json
+            - .gitignore
+            - README.md
+            
+            The repository structure has the following issues:
+            
+            ${missingDirs.length > 0 ? 'Missing Directories: ' + missingDirs.join(', ') : 'All directories are correct.'}
+            ${missingFiles.length > 0 ? 'Missing Files: ' + missingFiles.join(', ') : 'All files are correct.'}
+
+            If the architecture is valid, respond with 'Architecture is valid.' Otherwise, list the issues detected.`;
+
+            // Call Gemini API
+            const result = await model.generateContent(prompt);
+            const reviewText = result.response.text();
+
+            // Write result to a file
+            fs.writeFileSync('architecture_check_result.txt', reviewText);
+
+            console.log("Architecture check completed.");
+          }
+
+          runArchitectureCheck().catch(error => {
+            console.error('Error during architecture check:', error);
+            process.exit(1);
+          });
+          ENDOFSCRIPT
+
+      - name: Package Check (Gemini Bot)
+        id: package-check
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node << 'ENDOFSCRIPT'
+          const fs = require('fs');
+          const { GoogleGenerativeAI } = require("@google/generative-ai");
+          const packageJson = require('./package.json');
+
+          async function runPackageCheck() {
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            // Gather dependencies and devDependencies from package.json
+            const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+
+            // Check for redundancy in packages (e.g., zustand and redux)
+            const redundantPackages = [
+              ['zustand', 'redux'],  // Example of redundant packages
+              ['axios', 'node-fetch'], // Example of redundant HTTP clients
+              ['lodash', 'underscore'], // Example of redundant utility libraries
+            ];
+
+            let prompt = `You are an AI system that checks for redundant packages in a GitHub repository.
+
+            Please verify if the following redundant packages are being used in the repository:
+            
+            ${redundantPackages.map(pair => `- ${pair[0]} and ${pair[1]}`).join('\n')}
+
+            Here are the current dependencies in the repository:
+            ${JSON.stringify(dependencies, null, 2)}
+
+            If any of the redundant packages are present, respond with why they should not both be used and suggest which one should be removed.`;
+
+            // Call Gemini API
+            const result = await model.generateContent(prompt);
+            const reviewText = result.response.text();
+
+            // Write result to a file
+            fs.writeFileSync('package_check_result.txt', reviewText);
+
+            console.log("Package check completed.");
+          }
+
+          runPackageCheck().catch(error => {
+            console.error('Error during package check:', error);
+            process.exit(1);
+          });
+          ENDOFSCRIPT
+
+      - name: Post Architecture Check Comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          ARCHITECTURE_CHECK_RESULT=$(cat architecture_check_result.txt)
+
+          # Post the architecture check result as a comment on the PR
+          gh pr comment $PR_NUMBER --body "$ARCHITECTURE_CHECK_RESULT"
+
+      - name: Post Package Check Comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          PACKAGE_CHECK_RESULT=$(cat package_check_result.txt)
+
+          # Post the package check result as a comment on the PR
+          gh pr comment $PR_NUMBER --body "$PACKAGE_CHECK_RESULT"
+
+      - name: Prevent Force Push to main
+        run: |
+          # Prevent force push on main by checking branch history
+          git reflog | grep 'main' | grep 'force' && exit 1
+          echo "Force push prevention check passed."

@@ -13,13 +13,12 @@ export default function SignUpPage() {
 
     fetch('https://example.com/api/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password }), // Sensitive data sent as plain text
+      body: JSON.stringify({ email, password }),
     })
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
           alert('Sign up successful');
-          // Token stored in insecure localStorage (vulnerable to XSS)
           localStorage.setItem('token', data.token); 
         } else {
           alert('Sign up failed');
