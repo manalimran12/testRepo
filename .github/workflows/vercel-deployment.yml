@@ -1,0 +1,46 @@
+name: Vercel Auto Setup and Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check if project already exists on Vercel
+        id: check-project
+        run: |
+          # Install Vercel CLI
+          npm i -g vercel
+          
+          # Check if project already exists
+          PROJECT_EXISTS=$(vercel --token ${{ secrets.VERCEL_TOKEN }} ls --json | grep -q \"${{ github.event.repository.name }}\" && echo "true" || echo "false")
+          echo "project_exists=$PROJECT_EXISTS" >> $GITHUB_OUTPUT
+      
+      - name: First-time setup - Create Vercel project
+        if: steps.check-project.outputs.project_exists == 'false'
+        run: |
+          # Create vercel.json if it doesn't exist
+          if [ ! -f "vercel.json" ]; then
+            echo '{
+              "name": "${{ github.event.repository.name }}",
+              "buildCommand": "npm run build",
+              "outputDirectory": "dist",
+              "framework": "nextjs"
+            }' > vercel.json
+          fi
+          
+          # Link and deploy for the first time
+          vercel --token ${{ secrets.VERCEL_TOKEN }} link --confirm --yes
+          vercel --token ${{ secrets.VERCEL_TOKEN }} deploy --prod --yes
+          
+          echo "Initial project setup complete on Vercel."
+          
+      - name: Regular deployment - Let Vercel handle it
+        if: steps.check-project.outputs.project_exists == 'true'
+        run: |
+          echo "Project already exists on Vercel."
+          echo "Vercel's GitHub integration will handle this deployment automatically."
