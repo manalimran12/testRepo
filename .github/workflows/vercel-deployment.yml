@@ -23,7 +23,7 @@ jobs:
       - name: First-time setup - Link and deploy project
         if: steps.check-project.outputs.project_exists == 'false'
         run: |
-          vercel --token ${{ secrets.VERCEL_TOKEN }} link --yes
+          vercel --token ${{ secrets.VERCEL_TOKEN }} link --yes --project my-clean-project-name
           vercel --token ${{ secrets.VERCEL_TOKEN }} deploy --prod --yes
           echo "Initial project setup complete on Vercel."
 
