@@ -10,38 +10,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
       - name: Check if project already exists on Vercel
         id: check-project
         run: |
-          # Install Vercel CLI
-          npm i -g vercel
-          
-          # Check if project already exists
           PROJECT_EXISTS=$(vercel --token ${{ secrets.VERCEL_TOKEN }} ls --json | grep -q "${{ github.event.repository.name }}" && echo "true" || echo "false")
           echo "project_exists=$PROJECT_EXISTS" >> $GITHUB_OUTPUT
-      
-      - name: First-time setup - Create Vercel project
+
+      - name: First-time setup - Link and deploy project
         if: steps.check-project.outputs.project_exists == 'false'
         run: |
-          # Create vercel.json if it doesn't exist
-          if [ ! -f "vercel.json" ]; then
-            PROJECT_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]//g' | sed 's/---/-/g')
-            echo "Using project name: $PROJECT_NAME"
-            echo "{
-              \"name\": \"$PROJECT_NAME\",
-              \"buildCommand\": \"npm run build\",
-              \"outputDirectory\": \"dist\",
-              \"framework\": \"nextjs\"
-            }" > vercel.json
-          fi
-          
-          # Link and deploy for the first time
           vercel --token ${{ secrets.VERCEL_TOKEN }} link --yes
           vercel --token ${{ secrets.VERCEL_TOKEN }} deploy --prod --yes
-          
           echo "Initial project setup complete on Vercel."
-          
+
       - name: Regular deployment - Let Vercel handle it
         if: steps.check-project.outputs.project_exists == 'true'
         run: |
