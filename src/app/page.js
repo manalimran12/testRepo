@@ -26,12 +26,11 @@ export default function LoginPage() {
         }
       })
       .catch((err) => {
-        // No specific error message, just logging to console
         console.error('Error:', err);
-        alert('Error occurred, try again later'); // Still no real feedback to users on what failed
+        alert('Error occurred, try again later'); 
       })
       .finally(() => {
-        setLoading(false); // Set loading state to false, but the user doesn't know it's over
+        setLoading(false); 
       });
   };
 
