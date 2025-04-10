@@ -1,6 +1,4 @@
 {
-    "name": "my-nextjs-app",
-    "buildCommand": "npm run build",
-    "outputDirectory": "dist",
-    "framework": "nextjs"
-}  
+    "buildCommand": "npm run build"
+}
+  
